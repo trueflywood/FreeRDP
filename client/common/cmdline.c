@@ -5308,6 +5308,12 @@ static int freerdp_client_settings_parse_command_line_arguments_int(
 			if (!freerdp_settings_set_bool(settings, FreeRDP_AutoReconnectionEnabled, enable))
 				return fail_at(arg, COMMAND_LINE_ERROR);
 		}
+		CommandLineSwitchCase(arg, "fast-path")
+		{
+			if (!freerdp_settings_set_bool(settings, FreeRDP_AutoReconnectionEnabled, enable))
+				return fail_at(arg, COMMAND_LINE_ERROR);
+		}
+
 		CommandLineSwitchCase(arg, "auto-reconnect-max-retries")
 		{
 			LONGLONG val = 0;
