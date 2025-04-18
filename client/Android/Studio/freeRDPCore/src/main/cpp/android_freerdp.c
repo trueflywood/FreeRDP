@@ -23,6 +23,7 @@
 #include <errno.h>
 
 #include <winpr/assert.h>
+#include <winpr/wlog.h>
 
 #include <freerdp/graphics.h>
 #include <freerdp/codec/rfx.h>
@@ -36,13 +37,8 @@
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cmdline.h>
 #include <freerdp/constants.h>
-#include <freerdp/locale/keyboard.h>
-#include <freerdp/primitives.h>
-#include <freerdp/version.h>
-#include <freerdp/settings.h>
-#include <freerdp/utils/signal.h>
-
-#include <android/bitmap.h>
+#include <freerdp/locale/keyboard.h>                 // Позиция курсора по X
+UINT32 nYDst = pointer->yPos; 
 
 #include "android_jni_callback.h"
 #include "android_jni_utils.h"
@@ -221,7 +217,7 @@ static BOOL android_Pointer_New(rdpContext* context, rdpPointer* pointer)
 	WINPR_ASSERT(pointer);
 	WINPR_ASSERT(context->gdi);
 
-	return TRUE;
+    return TRUE;
 }
 
 static void android_Pointer_Free(rdpContext* context, rdpPointer* pointer)
@@ -231,16 +227,150 @@ static void android_Pointer_Free(rdpContext* context, rdpPointer* pointer)
 
 static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
 {
-	WINPR_ASSERT(context);
-	WINPR_ASSERT(pointer);
+    WINPR_ASSERT(context);
+    WINPR_ASSERT(pointer);
 
-	return TRUE;
+    // Получаем графический контекст
+    rdpGdi* gdi = context->gdi;
+    if (!gdi || !gdi->primary_buffer) {
+        WLog_ERR(TAG, "Unable to get gdi context");
+        return FALSE;
+    }
+
+    // Параметры для freerdp_image_copy_from_icon_data
+    BYTE* pDstData = gdi->primary_buffer;          // Буфер назначения (экран)
+    UINT32 DstFormat = gdi->dstFormat;             // Формат пикселей буфера назначения
+    UINT32 nDstStep = gdi->stride;                 // Шаг буфера назначения
+    UINT32 nXDst = pointer->xPos;                  // Позиция курсора по X
+    UINT32 nYDst = pointer->yPos;                  // Позиция курсора по Y
+    UINT16 nWidth = pointer->width;                // Ширина курсора
+    UINT16 nHeight = pointer->height;              // Высота курсора
+    const BYTE* bitsColor = pointer->xorMaskData;  // Цветные данные (XOR-маска)
+    UINT16 cbBitsColor = pointer->lengthXorMask;   // Размер цветных данных
+    const BYTE* bitsMask = pointer->andMaskData;   // Маска (AND-маска)
+    UINT16 cbBitsMask = pointer->lengthAndMask;    // Размер маски
+    const BYTE* colorTable = NULL;                 // Таблица цветов (если используется)
+    UINT16 cbColorTable = 0;                       // Размер таблицы цветов
+    UINT32 bpp = pointer->xorBpp;                  // Глубина цвета курсора
+
+    // Копируем данные курсора в буфер изображения
+    BOOL result = freerdp_image_copy_from_pointer_data(
+            pDstData, DstFormat, nDstStep, nXDst, nYDst, nWidth, nHeight,bitsColor,
+            cbBitsColor, bitsMask, cbBitsMask, bpp, &gdi->palette
+    );
+
+    if (!result)
+    {
+        WLog_ERR(TAG, "Failed to copy pointer data to image buffer");
+        return FALSE;
+    }
+
+    android_end_paint(context);
+
+    // Передаем данные курсора в Java
+    JNIEnv* env;
+    jboolean attached = jni_attach_thread(&env);  // Инициализируем env
+
+    if (attached == JNI_TRUE)
+    {
+        // Создаем массив пикселей для передачи в Java
+        jintArray pixels = (*env)->NewIntArray(env, pointer->width * pointer->height);
+        if (!pixels)
+        {
+            WLog_ERR(TAG, "Failed to create pixel array");
+            jni_detach_thread();
+            return FALSE;
+        }
+
+        jint* pixelArray = (*env)->GetIntArrayElements(env, pixels, NULL);
+        if (!pixelArray)
+        {
+            WLog_ERR(TAG, "Failed to get pixel array elements");
+            (*env)->DeleteLocalRef(env, pixels);
+            jni_detach_thread();
+            return FALSE;
+        }
+
+// Заполняем массив данными курсора
+        const BYTE* andMask = pointer->andMaskData;  // AND-маска (прозрачность)
+        const BYTE* xorMask = pointer->xorMaskData;  // XOR-маска (цветные данные)
+        const UINT16 width = pointer->width;
+        const UINT16 height = pointer->height;
+        const UINT32 bpp = pointer->xorBpp;          // Глубина цвета (бит на пиксель)
+
+        for (int y = 0; y < height; y++)
+        {
+            int mirroredY = height - 1 - y;
+            for (int x = 0; x < width; x++)
+            {
+                int index = mirroredY * width + x;
+                //int index = y * width + mirroredX;
+                //int index = y * width + x;
+                int andByteIndex = y * ((width + 7) / 8) + (x / 8);
+                int andBitIndex = 7 - (x % 8);
+                int andBit = (andMask[andByteIndex] >> andBitIndex) & 1;
+
+                // Если бит AND-маски равен 1, пиксель прозрачный
+                if (andBit)
+                {
+                    pixelArray[index] = 0;  // Прозрачный пиксель (ARGB: 0x00000000)
+                }
+                else
+                {
+                    // Получаем цвет из XOR-маски
+                    UINT32 color = 0;
+                    if (bpp == 24)  // 24 бита на пиксель (RGB)
+                    {
+                        int xorByteIndex = y * width * 3 + x * 3;
+                        color = (xorMask[xorByteIndex] << 16) |  // Красный
+                                (xorMask[xorByteIndex + 1] << 8) |  // Зеленый
+                                (xorMask[xorByteIndex + 2]);        // Синий
+                        color |= 0xFF000000;  // Непрозрачный пиксель (ARGB: 0xFFRRGGBB)
+                    }
+                    else if (bpp == 32)  // 32 бита на пиксель (ARGB)
+                    {
+                        int xorByteIndex = y * width * 4 + x * 4;
+                        color = (xorMask[xorByteIndex] << 24) |  // Альфа
+                                (xorMask[xorByteIndex + 1] << 16) |  // Красный
+                                (xorMask[xorByteIndex + 2] << 8) |  // Зеленый
+                                (xorMask[xorByteIndex + 3]);        // Синий
+                    }
+                    else
+                    {
+                        WLog_ERR(TAG, "Unsupported bpp: %" PRIu32, bpp);
+                        (*env)->ReleaseIntArrayElements(env, pixels, pixelArray, 0);
+                        (*env)->DeleteLocalRef(env, pixels);
+                        jni_detach_thread();
+                        return FALSE;
+                    }
+
+                    pixelArray[index] = color;
+                }
+            }
+        }
+
+        (*env)->ReleaseIntArrayElements(env, pixels, pixelArray, 0);
+
+        // Вызываем Java-метод для обновления курсора
+        freerdp_callback("onCursorUpdate", "([IIIII)V", pixels, pointer->width, pointer->height, pointer->xPos, pointer->yPos);
+
+        // Освобождаем локальные ссылки
+        (*env)->DeleteLocalRef(env, pixels);
+
+        // Отсоединяем поток, если он был присоединен
+        jni_detach_thread();
+    }
+    else
+    {
+        WLog_ERR(TAG, "Failed to attach thread to JVM");
+        return TRUE;
+    }
+    return TRUE;
 }
 
 static BOOL android_Pointer_SetPosition(rdpContext* context, UINT32 x, UINT32 y)
 {
 	WINPR_ASSERT(context);
-
 	return TRUE;
 }
 
@@ -500,7 +630,7 @@ static DWORD WINAPI android_thread_func(LPVOID param)
 	else
 	{
 		status = android_freerdp_run(instance);
-		WLog_DBG(TAG, "Disonnect...");
+		WLog_DBG(TAG, "Disconnect...");
 
 		if (!freerdp_disconnect(instance))
 			status = GetLastError();
@@ -650,7 +780,7 @@ JNIEXPORT jlong JNICALL Java_com_freerdp_freerdpcore_services_LibFreeRDP_freerdp
 	if (setenv("HOME", _strdup(envStr), 1) != 0)
 	{
 		char ebuffer[256] = { 0 };
-		WLog_FATAL(TAG, "Failed to set environemnt HOME=%s %s [%d]", env,
+		WLog_FATAL(TAG, "Failed to set environment HOME=%s %s [%d]", env,
 		           winpr_strerror(errno, ebuffer, sizeof(ebuffer)), errno);
 		return (jlong)NULL;
 	}
@@ -996,7 +1126,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
 	JNIEnv* env;
 	setlocale(LC_ALL, "");
-	WLog_DBG(TAG, "Setting up JNI environement...");
+	WLog_DBG(TAG, "Setting up JNI environment...");
 
 	/*
 	    if (freerdp_handle_signals() != 0)
@@ -1029,7 +1159,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
 void JNICALL JNI_OnUnload(JavaVM* vm, void* reserved)
 {
 	JNIEnv* env;
-	WLog_DBG(TAG, "Tearing down JNI environement...");
+	WLog_DBG(TAG, "Tearing down JNI environment...");
 
 	if ((*vm)->GetEnv(vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK)
 	{
