@@ -37,8 +37,15 @@
 #include <freerdp/client/channels.h>
 #include <freerdp/client/cmdline.h>
 #include <freerdp/constants.h>
-#include <freerdp/locale/keyboard.h>                 // Позиция курсора по X
-UINT32 nYDst = pointer->yPos; 
+#include <freerdp/locale/keyboard.h>
+#include <freerdp/primitives.h>
+#include <freerdp/version.h>
+#include <freerdp/settings.h>
+#include <freerdp/utils/signal.h>
+#include <freerdp/codec/color.h>
+#include <freerdp/freerdp.h>
+
+#include <android/bitmap.h>
 
 #include "android_jni_callback.h"
 #include "android_jni_utils.h"
