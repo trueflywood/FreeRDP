@@ -359,7 +359,7 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
         (*env)->ReleaseIntArrayElements(env, pixels, pixelArray, 0);
 
         // Вызываем Java-метод для обновления курсора
-        freerdp_callback("onCursorUpdate", "(J[IIIII)V",context, pixels, pointer->width, pointer->height, pointer->xPos, pointer->yPos);
+        freerdp_callback("onCursorUpdate", "(J[IIIII)V",context->instance, pixels, pointer->width, pointer->height, pointer->xPos, pointer->yPos);
 
         // Освобождаем локальные ссылки
         (*env)->DeleteLocalRef(env, pixels);
