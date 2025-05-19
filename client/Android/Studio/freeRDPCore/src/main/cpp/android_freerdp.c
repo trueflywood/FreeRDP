@@ -241,7 +241,7 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
     rdpGdi* gdi = context->gdi;
     if (!gdi || !gdi->primary_buffer) {
         WLog_ERR(TAG, "Unable to get gdi context");
-        return FALSE;
+        return TRUE;
     }
 
     // Параметры для freerdp_image_copy_from_icon_data
@@ -269,7 +269,7 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
     if (!result)
     {
         WLog_ERR(TAG, "Failed to copy pointer data to image buffer");
-        return FALSE;
+        return TRUE;
     }
 
     android_end_paint(context);
@@ -286,7 +286,7 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
         {
             WLog_ERR(TAG, "Failed to create pixel array");
             jni_detach_thread();
-            return FALSE;
+            return TRUE;
         }
 
         jint* pixelArray = (*env)->GetIntArrayElements(env, pixels, NULL);
@@ -295,7 +295,7 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
             WLog_ERR(TAG, "Failed to get pixel array elements");
             (*env)->DeleteLocalRef(env, pixels);
             jni_detach_thread();
-            return FALSE;
+            return TRUE;
         }
 
 // Заполняем массив данными курсора
@@ -348,7 +348,7 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
                         (*env)->ReleaseIntArrayElements(env, pixels, pixelArray, 0);
                         (*env)->DeleteLocalRef(env, pixels);
                         jni_detach_thread();
-                        return FALSE;
+                        return TRUE;
                     }
 
                     pixelArray[index] = color;
@@ -359,13 +359,14 @@ static BOOL android_Pointer_Set(rdpContext* context, rdpPointer* pointer)
         (*env)->ReleaseIntArrayElements(env, pixels, pixelArray, 0);
 
         // Вызываем Java-метод для обновления курсора
-        freerdp_callback("onCursorUpdate", "(J[IIIII)V",context->instance, pixels, pointer->width, pointer->height, pointer->xPos, pointer->yPos);
+        freerdp_callback("onCursorUpdate", "(J[IIIII)V", context->instance, pixels, pointer->width, pointer->height, pointer->xPos, pointer->yPos);
 
         // Освобождаем локальные ссылки
         (*env)->DeleteLocalRef(env, pixels);
 
         // Отсоединяем поток, если он был присоединен
         jni_detach_thread();
+        return TRUE;
     }
     else
     {
