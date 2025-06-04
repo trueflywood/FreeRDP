@@ -689,22 +689,7 @@ public class SessionActivity extends AppCompatActivity
 		// can't use switch/case here ..
 		int itemId = item.getItemId();
 
-		if (itemId == R.id.session_touch_pointer)
-		{
-			// toggle touch pointer
-			if (touchPointerView.getVisibility() == View.VISIBLE)
-			{
-				touchPointerView.setVisibility(View.INVISIBLE);
-				sessionView.setTouchPointerPadding(0, 0);
-			}
-			else
-			{
-				touchPointerView.setVisibility(View.VISIBLE);
-				sessionView.setTouchPointerPadding(touchPointerView.getPointerWidth(),
-				                                   touchPointerView.getPointerHeight());
-			}
-		}
-		else if (itemId == R.id.session_sys_keyboard)
+		if (itemId == R.id.session_sys_keyboard)
 		{
 			showKeyboard(!sysKeyboardVisible, false);
 		}
