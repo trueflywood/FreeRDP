@@ -218,8 +218,9 @@ static DWORD GetSystemPageSize(void)
 	if (sc_page_size > 0)
 		dwPageSize = (DWORD)sc_page_size;
 
-	if (dwPageSize < 4096)
-		dwPageSize = 4096;
+	/* Ensure page size is at least 1024 bytes (supported by most systems) */
+	if (dwPageSize < 1024)
+		dwPageSize = 1024;
 
 	return dwPageSize;
 }

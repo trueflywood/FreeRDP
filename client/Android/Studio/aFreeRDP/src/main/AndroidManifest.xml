@@ -8,7 +8,8 @@
         android:name="com.freerdp.afreerdp.application.GlobalApp"
         android:icon="@drawable/icon_launcher_freerdp"
         android:label="aFreeRDP"
-        android:resizeableActivity="true">
+        android:resizeableActivity="true"
+        android:pageSizeCompat="disabled">
 
         <!-- Main activity -->
         <activity

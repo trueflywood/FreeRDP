@@ -66,7 +66,7 @@ extern "C"
 	 *
 	 *  Note that the length is advisory only: Because of the way the
 	 *  memory mirroring technique works, the true buffer length will
-	 *  be multiples of the device page size (e.g. 4096 bytes)
+	 *  be multiples of the device page size (e.g. 4KB, 16KB, etc.)
 	 *
 	 * @param buffer Circular buffer
 	 * @param length Length of buffer

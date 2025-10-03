@@ -60,6 +60,12 @@ endif()
 
 add_library(${MODULE_NAME} SHARED ${${MODULE_PREFIX}_SRCS})
 
+# Настройка выравнивания для поддержки 16KB страниц согласно требованиям Google Play
+set_target_properties(${MODULE_NAME} PROPERTIES
+    LINK_FLAGS "-Wl,-z,max-page-size=16384"
+    COMPILE_FLAGS "-DPAGE_SIZE_SUPPORT_16KB"
+)
+
 add_library(freerdp3-lib SHARED IMPORTED)
 set_property(TARGET freerdp3-lib PROPERTY IMPORTED_LOCATION ${FREERDP_IMPORT_DIR}/libfreerdp3.so)
 
