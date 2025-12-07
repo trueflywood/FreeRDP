@@ -29,6 +29,8 @@ function build {
 	BASE=$(pwd)
 	DST_DIR=$BUILD_DST/$DST_PREFIX
 	common_run cd $BUILD_SRC
+	# Поддержка 16 КБ страниц: добавление флага выравнивания в LDFLAGS
+	export LDFLAGS="-Wl,-z,max-page-size=16384"
 	common_run ./Configure ${CONFIG} -D__ANDROID_API__=$NDK_TARGET
 	common_run make SHLIB_EXT=.so -j build_libs
 

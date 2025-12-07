@@ -10,6 +10,8 @@ function build {
 	BASE=$(pwd)
 	common_run cd $BUILD_SRC
 	PATH=$ANDROID_NDK:$PATH
+	# Поддержка 16 КБ страниц: добавление флага выравнивания в LDFLAGS
+	export LDFLAGS="-Wl,-z,max-page-size=16384"
 	MAKE="make PATH=$PATH ENABLEPIC=Yes OS=android NDKROOT=$ANDROID_NDK NDK_TOOLCHAIN_VERSION=clang TARGET=android-$2 NDKLEVEL=$2 ARCH=$1 -j libraries"
 
 	common_run export QUIET_AR="$CCACHE "

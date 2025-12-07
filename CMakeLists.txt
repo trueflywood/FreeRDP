@@ -441,6 +441,12 @@ if(ANDROID)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG} -gdwarf-3")
 	endif()
 	set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -llog")
+	
+	# Поддержка 16 КБ страниц согласно требованиям Google Play
+	# Выравнивание сегмента LOAD в ELF файлах до 16 КБ для всех библиотек
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
+	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-z,max-page-size=16384")
 
 	# CMAKE_PREFIX_PATH detection is broken in most Android toolchain files
 	# Append it to CMAKE_FIND_ROOT_PATH and avoid potential duplicates

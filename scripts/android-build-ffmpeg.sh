@@ -60,18 +60,20 @@ function get_clang_target_host() {
 }
 
 function get_arch_specific_ldflags() {
+    # Флаг выравнивания 16 КБ для поддержки устройств с размером страницы 16 КБ
+    PAGE_SIZE_FLAG="-Wl,-z,max-page-size=16384"
     case ${ARCH} in
         armeabi-v7a)
-            echo "-march=armv7-a -mfpu=neon -mfloat-abi=softfp -Wl,--fix-cortex-a8"
+            echo "-march=armv7-a -mfpu=neon -mfloat-abi=softfp -Wl,--fix-cortex-a8 ${PAGE_SIZE_FLAG}"
         ;;
         arm64-v8a)
-            echo "-march=armv8-a"
+            echo "-march=armv8-a ${PAGE_SIZE_FLAG}"
         ;;
         x86)
-            echo "-march=i686"
+            echo "-march=i686 ${PAGE_SIZE_FLAG}"
         ;;
         x86_64)
-            echo "-march=x86-64"
+            echo "-march=x86-64 ${PAGE_SIZE_FLAG}"
         ;;
     esac
 }
